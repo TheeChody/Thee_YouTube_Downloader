@@ -14,8 +14,17 @@ else:
     application_path = os.path.dirname(__file__)
 
 downloads_path = f"{application_path}/Thee Downloaded/"
+ffmpeg_path = f"{Path(__file__).parent.absolute()}/ffmpeg/"
 Path(f"{application_path}/Thee Downloaded").mkdir(parents=True, exist_ok=True)
 Path(f"{Path(__file__).parent.absolute()}/pytube/__cache__").mkdir(parents=True, exist_ok=True)
+
+
+def local_ffmpeg(relative_path):
+    try:
+        return os.path.join(ffmpeg_path, relative_path)
+    except Exception as e:
+        download_completed.configure(text=f"Error pathing out resources\n\n{e}\n\n{ffmpeg_path}{relative_path}")
+        return None
 
 
 def start_download():
@@ -25,7 +34,7 @@ def start_download():
             reset_app(True)
             return
         elif video_res.get() == "":
-            download_completed.configure(text=f"Drop-Down Menu Is Blank")
+            download_completed.configure(text=f"Please choose one of thee following via Drop-Down Menu\n{', '.join(video_list)}")
             reset_app(True)
             return
         download_completed.configure(text="")
@@ -45,9 +54,13 @@ def start_download():
             audio_download = youtube_object.streams.get_audio_only()
         elif video_res.get() == "720p":
             download = youtube_object.streams.get_highest_resolution()
-        else:
+        elif video_res.get() == "Lowest Res":
             download = youtube_object.streams.get_lowest_resolution()
-        filename = f"{youtube_object.author}--{youtube_object.title}.mp4"
+        else:
+            download_completed.configure(text=f"Something went wrong selecting video resolution, let TheeChody know please and thank you\n\nValue of video_res:: '{video_res.get()}'")
+            reset_app(True)
+            return
+        filename = f"{youtube_object.author}_-_{youtube_object.title}.mp4"
         for letter in filename:
             if letter in illegal_chars:
                 letter = "X"
@@ -58,7 +71,7 @@ def start_download():
         download.download(filename=filename)
         if audio_only:
             audio_filename = f"{filename[:-4]}.mp3"
-            subprocess.run(f"ffmpeg -i {filename} {audio_filename}")
+            subprocess.run(local_ffmpeg(f"ffmpeg -i {filename} {audio_filename}"))
             if os.path.exists(filename):
                 os.remove(filename)
             if os.path.exists(audio_filename):
@@ -68,7 +81,7 @@ def start_download():
             audio_filename = f"{filename[:-4]}.mp3"
             audio_download.download(filename=audio_filename)
             comb_filename = f"combined_{filename}"
-            subprocess.run(f"ffmpeg -i {filename} -i {audio_filename} -c copy {comb_filename}")
+            subprocess.run(local_ffmpeg(f"ffmpeg -i {filename} -i {audio_filename} -c copy {comb_filename}"))
             if os.path.exists(filename):
                 os.remove(filename)
             if os.path.exists(audio_filename):
@@ -84,7 +97,7 @@ def start_download():
         reset_app()
     except Exception as e:
         if WindowsError:
-            download_completed.configure(text=f"Error:: {e}\n\nIf regex_search: Try with full link/check link is complete\n\nIf WinError2: Filename already exists\n\nIf WinError 3: FFmpeg isn't setup right\n\nIf Else/Need Help\nContact TheeChody With Thee Error")
+            download_completed.configure(text=f"Error\n{e}\n\n\nIf regex_search: Try with full link/check link is complete\n\nIf WinError2: Filename already exists\n\nIf WinError 3: FFmpeg isn't setup right\n\nIf Else/Need Help\nContact TheeChody With Thee Error")
         else:
             download_completed.configure(text=f"Error downloading file\n\n{e}\n\nContact TheeChody with this error for more details")
         reset_app(True)
