@@ -19,7 +19,6 @@ Path(f"{Path(__file__).parent.absolute()}/pytube/__cache__").mkdir(parents=True,
 
 
 def start_download():
-    print(dl_link.get())
     try:
         if dl_link.get() == "":
             download_completed.configure(text=f"URL Field Is Blank")
@@ -46,12 +45,8 @@ def start_download():
             audio_download = youtube_object.streams.get_audio_only()
         elif video_res.get() == "720p":
             download = youtube_object.streams.get_highest_resolution()
-        elif video_res.get() == "Lowest Res":
-            download = youtube_object.streams.get_lowest_resolution()
         else:
-            download_completed.configure(text=f"Error downloading file, must choose {', '.join(video_list)}")
-            reset_app(True)
-            return
+            download = youtube_object.streams.get_lowest_resolution()
         filename = f"{youtube_object.author}--{youtube_object.title}.mp4"
         for letter in filename:
             if letter in illegal_chars:
