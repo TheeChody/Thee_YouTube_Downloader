@@ -19,9 +19,14 @@ Path(f"{Path(__file__).parent.absolute()}/pytube/__cache__").mkdir(parents=True,
 
 
 def start_download():
+    print(dl_link.get())
     try:
-        if dl_link.get() is None:
+        if dl_link.get() == "":
             download_completed.configure(text=f"URL Field Is Blank")
+            reset_app(True)
+            return
+        elif video_res.get() == "":
+            download_completed.configure(text=f"Drop-Down Menu Is Blank")
             reset_app(True)
             return
         download_completed.configure(text="")
@@ -83,10 +88,8 @@ def start_download():
             download_completed.configure(text=f"{filename.replace('_', ' ')}\nVideo Downloaded")
         reset_app()
     except Exception as e:
-        if FileExistsError:
-            download_completed.configure(text=f"Error there is a file that already exists with this filename!!\n\n{e}")
-        elif WindowsError:
-            download_completed.configure(text=f"Error Combining/Converting Video with/to Audio\nAre you sure you have FFmpeg installed and path set correctly?\n\nIf so, contact TheeChody with this error\n\n{e}")
+        if WindowsError:
+            download_completed.configure(text=f"Error:: {e}\n\nIf regex_search: Try with full link/check link is complete\n\nIf WinError2: Filename already exists\n\nIf WinError 3: FFmpeg isn't setup right\n\nIf Else/Need Help\nContact TheeChody With Thee Error")
         else:
             download_completed.configure(text=f"Error downloading file\n\n{e}\n\nContact TheeChody with this error for more details")
         reset_app(True)
@@ -101,12 +104,12 @@ def reset_app(error=False):
         link_box.delete(0, 'end')
 
 
-customtkinter.set_appearance_mode("System")
-customtkinter.set_default_color_theme("green")
-
 app = customtkinter.CTk()
 app.geometry("600x420")
 app.title("Thee YouTube Downloader")
+
+customtkinter.set_appearance_mode("System")
+customtkinter.set_default_color_theme("green")
 
 title = customtkinter.CTkLabel(app, text="Enter YouTube LInk")
 title.pack(padx=10, pady=10)
