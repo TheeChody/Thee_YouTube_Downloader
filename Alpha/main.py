@@ -39,7 +39,7 @@ def start_download():
             return
         download_completed.configure(text="")
         title.configure(text="Processing Request")
-        hd_res, audio_only, audio_download, new_filename = False, False, None, ""
+        hd_res, audio_only, new_filename = False, False, ""
         youtube_object = YouTube(dl_link.get(), use_oauth=True, allow_oauth_cache=True)
         if video_res.get() == "Audio Only":
             audio_only = True
@@ -51,7 +51,6 @@ def start_download():
                 download_completed.configure(text=f"There is no 1080p version of this video, select 720p")
                 reset_app(True)
                 return
-            audio_download = youtube_object.streams.get_audio_only()
         elif video_res.get() == "720p":
             download = youtube_object.streams.get_highest_resolution()
         elif video_res.get() == "Lowest Res":
@@ -79,14 +78,14 @@ def start_download():
             download_completed.configure(text=f"{filename.replace('_', ' ')}\nAudio Downloaded")
         elif hd_res:
             audio_filename = f"{filename[:-4]}.mp3"
-            audio_download.download(filename=audio_filename)
             comb_filename = f"combined_{filename}"
+            youtube_object.streams.get_audio_only().download(filename=audio_filename)
             subprocess.run(local_ffmpeg(f"ffmpeg -i {filename} -i {audio_filename} -c copy {comb_filename}"))
             if os.path.exists(filename):
                 os.remove(filename)
             if os.path.exists(audio_filename):
                 os.remove(audio_filename)
-            if os.path.exists(comb_filename) and not os.path.exists(filename):
+            if os.path.exists(comb_filename):
                 filename = filename.replace("_", " ")
                 os.rename(comb_filename, f"{downloads_path}{filename}")
             download_completed.configure(text=f"{filename}\nVideo Downloaded & Ready")
@@ -97,7 +96,7 @@ def start_download():
         reset_app()
     except Exception as e:
         if WindowsError:
-            download_completed.configure(text=f"Error\n{e}\n\n\nIf regex_search: Try with full link/check link is complete\n\nIf WinError2: Filename already exists\n\nIf WinError 3: FFmpeg isn't setup right\n\nIf Else/Need Help\nContact TheeChody With Thee Error")
+            download_completed.configure(text=f"Error\n{e}\n\n\nIf regex_search: Try with full link/check link is complete\n\nIf WinError2: FFmpeg isn't setup right\n\nIf WinError 3: Filename already exists\n\nIf Else/Need Help\nContact TheeChody With Thee Error")
         else:
             download_completed.configure(text=f"Error downloading file\n\n{e}\n\nContact TheeChody with this error for more details")
         reset_app(True)
