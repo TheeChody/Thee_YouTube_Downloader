@@ -1,5 +1,6 @@
 import os
 import sys
+import threading
 import subprocess
 import customtkinter
 from pathlib import Path
@@ -27,6 +28,13 @@ def local_ffmpeg(relative_path):
         return None
 
 
+def progress_update(stream, chunk, bytes_remaining):
+    total_size = stream.filesize
+    bytes_downloaded = total_size - bytes_remaining
+    perc_completion = bytes_downloaded / total_size * 100
+    progress_bar.set(float(perc_completion) / 100)
+
+
 def start_download():
     try:
         if dl_link.get() == "":
@@ -37,10 +45,11 @@ def start_download():
             download_completed.configure(text=f"Please choose one of thee following via Drop-Down Menu\n{', '.join(video_list)}")
             reset_app(True)
             return
+        progress_bar.set(0)
         download_completed.configure(text="")
         title.configure(text="Processing Request")
         hd_res, audio_only, new_filename = False, False, ""
-        youtube_object = YouTube(dl_link.get(), use_oauth=True, allow_oauth_cache=True)
+        youtube_object = YouTube(dl_link.get(), use_oauth=True, allow_oauth_cache=True, on_progress_callback=progress_update)
         if video_res.get() == "Audio Only":
             audio_only = True
             download = youtube_object.streams.get_audio_only()
@@ -69,14 +78,16 @@ def start_download():
         filename = new_filename
         download.download(filename=filename)
         if audio_only:
+            download_completed.configure(text=f"Downloaded {filename}\nConverting to .mp3")
             audio_filename = f"{filename[:-4]}.mp3"
             subprocess.run(local_ffmpeg(f"ffmpeg -i {filename} {audio_filename}"))
             if os.path.exists(filename):
                 os.remove(filename)
             if os.path.exists(audio_filename):
                 os.rename(audio_filename, f"{downloads_path}{audio_filename.replace('_', ' ')}")
-            download_completed.configure(text=f"{filename.replace('_', ' ')}\nAudio Downloaded")
+            download_completed.configure(text=f"{audio_filename.replace('_', ' ')}\nAudio Downloaded")
         elif hd_res:
+            download_completed.configure(text=f"Downloaded {filename}\nStarting on audio track")
             audio_filename = f"{filename[:-4]}.mp3"
             comb_filename = f"combined_{filename}"
             youtube_object.streams.get_audio_only().download(filename=audio_filename)
@@ -129,8 +140,12 @@ video_res = customtkinter.StringVar()
 vid_res_list = customtkinter.CTkOptionMenu(app, values=video_list, variable=video_res)
 vid_res_list.pack(padx=10, pady=10)
 
-download_button = customtkinter.CTkButton(app, text="Download", command=start_download)
+download_button = customtkinter.CTkButton(app, text="Download", command=lambda: threading.Thread(target=start_download).start())
 download_button.pack(padx=10, pady=10)
+
+progress_bar = customtkinter.CTkProgressBar(app, width=550)
+progress_bar.set(0)
+progress_bar.pack(padx=10, pady=10)
 
 download_completed = customtkinter.CTkLabel(app, text="")
 download_completed.pack(padx=20, pady=10)
