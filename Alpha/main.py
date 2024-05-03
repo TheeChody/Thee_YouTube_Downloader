@@ -16,7 +16,10 @@ else:
 
 downloads_path = f"{application_path}/Thee Downloaded/"
 ffmpeg_path = f"{Path(__file__).parent.absolute()}/ffmpeg/"
-Path(f"{application_path}/Thee Downloaded").mkdir(parents=True, exist_ok=True)
+dl_audio_path = f"{downloads_path}Audio/"
+dl_video_path = f"{downloads_path}Video/"
+Path(dl_audio_path).mkdir(parents=True, exist_ok=True)
+Path(dl_video_path).mkdir(parents=True, exist_ok=True)
 Path(f"{Path(__file__).parent.absolute()}/pytube/__cache__").mkdir(parents=True, exist_ok=True)
 
 
@@ -84,26 +87,36 @@ def start_download():
             if os.path.exists(filename):
                 os.remove(filename)
             if os.path.exists(audio_filename):
-                os.rename(audio_filename, f"{downloads_path}{audio_filename.replace('_', ' ')}")
+                os.rename(audio_filename, f"{dl_audio_path}{audio_filename.replace('_', ' ')}")
             download_completed.configure(text=f"{audio_filename.replace('_', ' ')}\nAudio Downloaded")
         elif hd_res:
             download_completed.configure(text=f"Downloaded {filename}\nStarting on audio track")
+            progress_bar.set(0)
             audio_filename = f"audio_{filename}"
             comb_filename = f"combined_{filename}"
             youtube_object.streams.get_audio_only().download(filename=audio_filename)
             subprocess.run(local_ffmpeg(f"ffmpeg -i {filename} -i {audio_filename} -c copy {comb_filename}"))
             if os.path.exists(filename):
                 os.remove(filename)
+            if keep_audio.get():
+                new_audio_filename = f"{filename[:-4]}.mp3"
+                subprocess.run(local_ffmpeg(f"ffmpeg -i {audio_filename} {new_audio_filename}"))
+                os.rename(new_audio_filename, f"{dl_audio_path}{new_audio_filename.replace('_', ' ')}")
             if os.path.exists(audio_filename):
                 os.remove(audio_filename)
             if os.path.exists(comb_filename):
                 filename = filename.replace("_", " ")
-                os.rename(comb_filename, f"{downloads_path}{filename}")
-            download_completed.configure(text=f"{filename}\nVideo Downloaded & Ready")
+                os.rename(comb_filename, f"{dl_video_path}{filename}")
+            download_completed.configure(text=f"{filename}\n{'Audio & ' if keep_audio.get() else ''}Video Downloaded & Ready")
         else:
+            if keep_audio.get():
+                audio_filename = f"{filename[:-4]}.mp3"
+                subprocess.run(local_ffmpeg(f"ffmpeg -i {filename} {audio_filename}"))
+                if os.path.exists(audio_filename):
+                    os.rename(audio_filename, f"{dl_audio_path}{audio_filename}")
             if os.path.exists(filename):
-                os.rename(filename, f"{downloads_path}{filename.replace('_', ' ')}")
-            download_completed.configure(text=f"{filename.replace('_', ' ')}\nVideo Downloaded")
+                os.rename(filename, f"{dl_video_path}{filename.replace('_', ' ')}")
+            download_completed.configure(text=f"{filename.replace('_', ' ')}\n{'Audio & ' if keep_audio.get() else ''}Video Downloaded")
         reset_app()
     except Exception as e:
         if WindowsError:
@@ -136,6 +149,10 @@ dl_link = customtkinter.StringVar()
 link_box = customtkinter.CTkEntry(app, width=550, height=35, textvariable=dl_link)
 link_box.pack()
 
+progress_bar = customtkinter.CTkProgressBar(app, width=550)
+progress_bar.set(0)
+progress_bar.pack(padx=10, pady=10)
+
 video_res = customtkinter.StringVar()
 vid_res_list = customtkinter.CTkOptionMenu(app, values=video_list, variable=video_res)
 vid_res_list.pack(padx=10, pady=10)
@@ -143,9 +160,9 @@ vid_res_list.pack(padx=10, pady=10)
 download_button = customtkinter.CTkButton(app, text="Download", command=lambda: threading.Thread(target=start_download).start())
 download_button.pack(padx=10, pady=10)
 
-progress_bar = customtkinter.CTkProgressBar(app, width=550)
-progress_bar.set(0)
-progress_bar.pack(padx=10, pady=10)
+keep_audio = customtkinter.BooleanVar()
+keep_audio_box = customtkinter.CTkCheckBox(app, text="Keep Separate Audio File", offvalue=False, onvalue=True, variable=keep_audio)
+keep_audio_box.pack(padx=5, pady=10)
 
 download_completed = customtkinter.CTkLabel(app, text="")
 download_completed.pack(padx=20, pady=10)
