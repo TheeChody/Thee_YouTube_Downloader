@@ -23,7 +23,15 @@ Path(dl_video_path).mkdir(parents=True, exist_ok=True)
 Path(f"{Path(__file__).parent.absolute()}/pytube/__cache__").mkdir(parents=True, exist_ok=True)
 
 
-def local_ffmpeg(relative_path):
+def keep_audio_box_state(value: str):
+    if value == "Audio Only":
+        keep_audio_box.deselect()
+        keep_audio_box.configure(state=customtkinter.DISABLED)
+    else:
+        keep_audio_box.configure(state=customtkinter.NORMAL)
+
+
+def local_ffmpeg(relative_path: str):
     try:
         return os.path.join(ffmpeg_path, relative_path)
     except Exception as e:
@@ -38,8 +46,29 @@ def progress_update(stream, chunk, bytes_remaining):
     progress_bar.set(float(perc_completion) / 100)
 
 
+def reset_app(error: bool = False):
+    state_change(True)
+    if error:
+        title.configure(text="Try Again with thee Full Link\nOr just 'v=characters' bit")
+    else:
+        title.configure(text="Enter New YouTube Link")
+        link_box.delete(0, 'end')
+
+
+def state_change(normal: bool):
+    if normal:
+        state = customtkinter.NORMAL
+    else:
+        state = customtkinter.DISABLED
+    link_box.configure(state=state)
+    vid_res_list.configure(state=state)
+    keep_audio_box.configure(state=state)
+    download_button.configure(state=state)
+
+
 def start_download():
     try:
+        state_change(False)
         if dl_link.get() == "":
             download_completed.configure(text=f"URL Field Is Blank")
             reset_app(True)
@@ -84,39 +113,45 @@ def start_download():
             download_completed.configure(text=f"Downloaded {filename}\nConverting to .mp3")
             audio_filename = f"{filename[:-4]}.mp3"
             subprocess.run(local_ffmpeg(f"ffmpeg -i {filename} {audio_filename}"))
+            download_completed.configure(text="Finished Audio Conversion\nCleaning Up/Renaming Remaining Files")
             if os.path.exists(filename):
                 os.remove(filename)
             if os.path.exists(audio_filename):
                 os.rename(audio_filename, f"{dl_audio_path}{audio_filename.replace('_', ' ')}")
-            download_completed.configure(text=f"{audio_filename.replace('_', ' ')}\nAudio Downloaded")
+            download_completed.configure(text=f"{audio_filename[:-4].replace('_', ' ')}\nAudio Downloaded")
         elif hd_res:
             download_completed.configure(text=f"Downloaded {filename}\nStarting on audio track")
             progress_bar.set(0)
             audio_filename = f"audio_{filename}"
             comb_filename = f"combined_{filename}"
             youtube_object.streams.get_audio_only().download(filename=audio_filename)
+            download_completed.configure(text=f"Downloaded {audio_filename}\nStarting Video Combination Process")
             subprocess.run(local_ffmpeg(f"ffmpeg -i {filename} -i {audio_filename} -c copy {comb_filename}"))
+            download_completed.configure(text=f"Finished Video Combination\n{'Starting Audio Conversion' if keep_audio.get() else 'Cleaning Up/Renaming Files'}")
             if os.path.exists(filename):
                 os.remove(filename)
             if keep_audio.get():
                 new_audio_filename = f"{filename[:-4]}.mp3"
                 subprocess.run(local_ffmpeg(f"ffmpeg -i {audio_filename} {new_audio_filename}"))
+                download_completed.configure(text=f"Finished Audio Conversion\nCleaning Up/Renaming Remaining Files")
                 os.rename(new_audio_filename, f"{dl_audio_path}{new_audio_filename.replace('_', ' ')}")
             if os.path.exists(audio_filename):
                 os.remove(audio_filename)
             if os.path.exists(comb_filename):
                 filename = filename.replace("_", " ")
                 os.rename(comb_filename, f"{dl_video_path}{filename}")
-            download_completed.configure(text=f"{filename}\n{'Audio & ' if keep_audio.get() else ''}Video Downloaded & Ready")
+            download_completed.configure(text=f"{filename[:-4]}\n{'Audio & ' if keep_audio.get() else ''}Video Downloaded & Ready")
         else:
             if keep_audio.get():
+                download_completed.configure(text=f"Downloaded {filename}\nConverting to .mp3")
                 audio_filename = f"{filename[:-4]}.mp3"
                 subprocess.run(local_ffmpeg(f"ffmpeg -i {filename} {audio_filename}"))
+                download_completed.configure(text="Finished Audio Conversion\nCleaning Up/Renaming Remaining Files")
                 if os.path.exists(audio_filename):
-                    os.rename(audio_filename, f"{dl_audio_path}{audio_filename}")
+                    os.rename(audio_filename, f"{dl_audio_path}{audio_filename.replace('_', ' ')}")
             if os.path.exists(filename):
                 os.rename(filename, f"{dl_video_path}{filename.replace('_', ' ')}")
-            download_completed.configure(text=f"{filename.replace('_', ' ')}\n{'Audio & ' if keep_audio.get() else ''}Video Downloaded")
+            download_completed.configure(text=f"{filename[:-4].replace('_', ' ')}\n{'Audio & ' if keep_audio.get() else ''}Video Downloaded")
         reset_app()
     except Exception as e:
         if WindowsError:
@@ -125,14 +160,6 @@ def start_download():
             download_completed.configure(text=f"Error downloading file\n\n{e}\n\nContact TheeChody with this error for more details")
         reset_app(True)
         return
-
-
-def reset_app(error=False):
-    if error:
-        title.configure(text="Try Again with thee Full Link\nOr just 'v=characters' bit")
-    else:
-        title.configure(text="Enter New YouTube Link")
-        link_box.delete(0, 'end')
 
 
 app = customtkinter.CTk()
@@ -154,7 +181,7 @@ progress_bar.set(0)
 progress_bar.pack(padx=10, pady=10)
 
 video_res = customtkinter.StringVar()
-vid_res_list = customtkinter.CTkOptionMenu(app, values=video_list, variable=video_res)
+vid_res_list = customtkinter.CTkOptionMenu(app, values=video_list, variable=video_res, command=keep_audio_box_state)
 vid_res_list.pack(padx=10, pady=10)
 
 download_button = customtkinter.CTkButton(app, text="Download", command=lambda: threading.Thread(target=start_download).start())
