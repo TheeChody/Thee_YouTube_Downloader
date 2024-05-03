@@ -88,7 +88,7 @@ def start_download():
             download_completed.configure(text=f"{audio_filename.replace('_', ' ')}\nAudio Downloaded")
         elif hd_res:
             download_completed.configure(text=f"Downloaded {filename}\nStarting on audio track")
-            audio_filename = f"{filename[:-4]}.mp3"
+            audio_filename = f"audio_{filename}"
             comb_filename = f"combined_{filename}"
             youtube_object.streams.get_audio_only().download(filename=audio_filename)
             subprocess.run(local_ffmpeg(f"ffmpeg -i {filename} -i {audio_filename} -c copy {comb_filename}"))
